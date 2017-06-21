@@ -5,7 +5,7 @@ import asyncio
 import importlib
 import logging
 import os
-import pickle
+import dill
 import redis
 import sys
 import threading
@@ -139,7 +139,7 @@ class Potato(commands.Bot):
         if event['type'] != 'message':
             return
         try:
-            _data = pickle.loads(event['data'])
+            _data = dill.loads(event['data'])
             if not isinstance(_data, dict):
                 return
             # get type, if this is a broken dict just ignore it
@@ -147,7 +147,7 @@ class Potato(commands.Bot):
                 return
             # ping response
             if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
-                self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id'),
+                self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
                                                       'response': 'Pong.'}))
             if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
                 func = _data.get('function')  # get the function, discard if None
@@ -161,9 +161,9 @@ class Potato(commands.Bot):
                 except Exception as e:
                     resp['response'] = e
                 try:
-                    self.redis.publish(_id, pickle.dumps(resp))
-                except pickle.PicklingError:  # if the response fails to pickle, return None instead
-                    self.redis.publish(_id, pickle.dumps({'type': 'response', 'id': _data.get('id')}))
+                    self.redis.publish(_id, dill.dumps(resp))
+                except dill.PicklingError:  # if the response fails to dill, return None instead
+                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id')}))
             if _data['type'] == 'response':
                 __id = _data.get('id')
                 if __id is None:
@@ -172,7 +172,7 @@ class Potato(commands.Bot):
                     return
                 self._pubsub_futures[__id].set_result(_data.get('response'))
                 del self._pubsub_futures[__id]
-        except pickle.UnpicklingError:
+        except dill.UnpicklingError:
             return
 
     def _pubsub_loop(self):
@@ -187,7 +187,7 @@ class Potato(commands.Bot):
         self._pubsub_futures[_id] = fut = asyncio.Future()
         request = {'id': _id, 'target': target}
         request.update(kwargs)
-        self.redis.publish(self.pubsub_id, pickle.dumps(request))
+        self.redis.publish(self.pubsub_id, dill.dumps(request))
         return fut
 
     async def run_on_shard(self, shard, func, *args, **kwargs):
