@@ -47,8 +47,24 @@ def prefix_getter(bot, message):
         if message.guild.id in bot.settings["prefixes"]:
             prefixes += bot.settings["prefixes"][message.guild.id]
     except:
+        pass
+    if type(bot.settings["command_prefix"]) is str:
         prefixes += bot.settings["command_prefix"]
+    else:
+        for prefix in bot.settings["command_prefix"]:
+            prefixes += bot.settings["command_prefix"]
     return prefixes
+
+
+class NoResponse:
+    def __repr__(self):
+        return '<NoResponse>'
+
+    def __eq__(self, other):
+        if isinstance(other, NoResponse):
+            return True
+        else:
+            return False
 
 
 class Potato(commands.Bot):
@@ -64,12 +80,13 @@ class Potato(commands.Bot):
         self.description = self.settings["description"]
         self.logger = logging.getLogger("potato")
         self.boot_time = time.time()
-        self.pubsub = threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True)
         self.redis = redis_conn
         self._pubsub_futures = {}  # futures temporarily stored here
+        self._pubsub_broadcast_cache = {}
         db = str(self.redis.connection_pool.connection_kwargs['db'])
         self.pubsub_id = 'potato.{}.pubsub.code'.format(db)
-        self.pubsub.start()
+        threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
+        threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
 
     def exit(code=0):
         exit(code)
@@ -81,7 +98,6 @@ class Potato(commands.Bot):
                 self.logger.info(line)
         except:
             pass
-
 
         self.logger.info('Logged in as {0}.'.format(self.user))
         if self.user.bot:
@@ -140,38 +156,53 @@ class Potato(commands.Bot):
             return
         try:
             _data = dill.loads(event['data'])
+            target = _data.get('target')
+            broadcast = target == 'all'
             if not isinstance(_data, dict):
                 return
             # get type, if this is a broken dict just ignore it
             if _data.get('type') is None:
                 return
             # ping response
-            if _data['type'] == 'ping' and _data.get('target') == self.shard_id:
-                self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
-                                                      'response': 'Pong.'}))
-            if _data['type'] == 'coderequest' and _data.get('target') == self.shard_id:
-                func = _data.get('function')  # get the function, discard if None
-                if func is None:
-                    return
-                resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
-                args = _data.get('args', ())
-                kwargs = _data.get('kwargs', {})
-                try:
-                    resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
-                except Exception as e:
-                    resp['response'] = e
-                try:
-                    self.redis.publish(_id, dill.dumps(resp))
-                except dill.PicklingError:  # if the response fails to dill, return None instead
-                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id')}))
+            if target == self.shard_id or broadcast:
+                if _data['type'] == 'ping':
+                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
+                                                        'response': 'Pong.'}))
+                if _data['type'] == 'coderequest':
+                    func = _data.get('function')  # get the function, discard if None
+                    if func is None:
+                        return
+                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
+                    if broadcast:
+                        resp['from'] = self.shard_id
+                    args = _data.get('args', ())
+                    kwargs = _data.get('kwargs', {})
+                    try:
+                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
+                    except Exception as e:
+                        resp['response'] = e
+                    try:
+                        self.redis.publish(_id, dill.dumps(resp))
+                    except dill.PicklingError:  # if the response fails to dill, return None instead
+                        resp = {'type': 'response', 'id': _data.get('id')}
+                        if broadcast:
+                            resp['from'] = self.shard_id
+                        self.redis.publish(_id, dill.dumps(resp))
             if _data['type'] == 'response':
                 __id = _data.get('id')
+                _from = _data.get('from')
                 if __id is None:
                     return
                 if __id not in self._pubsub_futures:
                     return
-                self._pubsub_futures[__id].set_result(_data.get('response'))
-                del self._pubsub_futures[__id]
+                if __id not in self._pubsub_broadcast_cache and _from is not None:
+                    return
+                if _from is None:
+                    self._pubsub_futures[__id].set_result(_data.get('response'))
+                    del self._pubsub_futures[__id]
+                else:
+                    self._pubsub_broadcast_cache[__id][_from] = _data.get('response')
+
         except dill.UnpicklingError:
             return
 
@@ -182,20 +213,35 @@ class Potato(commands.Bot):
         for event in pubsub.listen():
             threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
 
-    def request(self, target, **kwargs):
+    def _pubsub_cache_loop(self):
+        while True:
+            for k, v in dict(self._pubsub_broadcast_cache).items():
+                contents = [v[x] for x in v if x != 'expires']
+                if v['expires'] < time.monotonic() or NoResponse() not in contents:
+                    del v['expires']
+                    self._pubsub_futures[k].set_result(v)
+                    del self._pubsub_futures[k]
+                    del self._pubsub_broadcast_cache[k]
+            time.sleep(0.01)  # be nice to the host
+
+    def request(self, target, broadcast_timeout=1, **kwargs):
         _id = str(uuid.uuid4())
         self._pubsub_futures[_id] = fut = asyncio.Future()
         request = {'id': _id, 'target': target}
         request.update(kwargs)
+        if target == 'all':
+            cache = {k: NoResponse() for k in range(0, self.shard_count)}  # prepare the cache
+            cache['expires'] = time.monotonic() + broadcast_timeout
+            self._pubsub_broadcast_cache[_id] = cache
         self.redis.publish(self.pubsub_id, dill.dumps(request))
         return fut
 
     async def run_on_shard(self, shard, func, *args, **kwargs):
         return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
 
-    async def ping_shard(self, shard):
+    async def ping_shard(self, shard, timeout=1):
         try:
-            await asyncio.wait_for(self.request(shard, type='ping'), timeout=1)
+            await asyncio.wait_for(self.request(shard, type='ping'), timeout=timeout)
             return True
         except TimeoutError:
             return False
@@ -207,6 +253,13 @@ class Potato(commands.Bot):
 
 def first_time_setup():
     """Use to setup bot."""
+    settings["modules"] = [
+        "default.core",
+        "default.general",
+        "default.errors",
+        "default.mod",
+        "default.stats"
+    ]
     a = input("Do you want this bot to be a selfbot? ").lower()
     if "y" in a:
         settings["self_bot"] = True
@@ -218,13 +271,6 @@ def first_time_setup():
     settings["owners"] = []
     settings["prefixes"] = {}
     settings["roles"] = {"admin": {}, "mod": {}}
-    settings["modules"] = [
-        "default.core",
-        "default.general",
-        "default.errors",
-        "default.mod",
-        "default.stats"
-    ]
     settings["description"] = "Potato Discord Bot Framework."
     settings["setup"] = True
 

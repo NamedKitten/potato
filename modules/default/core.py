@@ -25,20 +25,29 @@ class Core:
             chain=chain)
         )
 
-    @commands.command(aliases=["reload"])
+    @commands.command()
+    @checks.is_owner()
+    async def reload(self, context, module_name):
+        args = [module_name]
+        command = self.potato.get_command("unload")
+        msg = await context.invoke(command, *args)
+        await msg.delete()
+        command = self.potato.get_command("load")
+        await context.invoke(command, *args)
+
+    @commands.command()
     @checks.is_owner()
     async def load(self, context, module_name):
         """Load a module."""
         resp = await self.potato.run_on_shard(None if self.potato.shard_id is None else 0, load_module, module_name)
         if resp is None:
-            msg = "Module loaded sucessfully."
             if self.potato.shard_id is not None:
-                for shard in range(1, self.potato.shard_count):
-                    self.potato.loop.create_task(self.potato.run_on_shard(shard, load_module, module_name))
+                await self.potato.run_on_shard("all", load_module, module_name)
+            return await context.send("Module loaded sucessfully.")
         else:
             msg = 'Unable to load; the module caused a `{}`:\n```py\n{}\n```'\
                 .format(type(resp).__name__, self.get_traceback(resp))
-        await context.send(msg)
+            return await context.send(msg)
 
     @commands.command()
     @checks.is_owner()
@@ -46,13 +55,12 @@ class Core:
         """Unload a module."""
         resp = await self.potato.run_on_shard(None if self.potato.shard_id is None else 0, unload_module, module_name)
         if resp is None:
-            msg = "Module unloaded sucessfully."
+
             if self.potato.shard_id is not None:
-                for shard in range(1, self.potato.shard_count):
-                    self.potato.run_on_shard(shard, unload_module, module_name)
+                await self.potato.run_on_shard("all", unload_module, module_name)
+            return await context.send("Module unloaded sucessfully.")
         else:
-            msg = "Unable to load; the module isn't loaded."
-        await context.send(msg)
+            return await context.send("Unable to load; the module isn't loaded.")
 
 
 def setup(potato):

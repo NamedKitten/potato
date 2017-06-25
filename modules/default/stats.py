@@ -48,7 +48,10 @@ class Stats:
         embed.add_field(name="**Bot Uptime**", value=get_bot_uptime(self.potato.boot_time))
 
         try:
-            embed.add_field(name="**Battery**", value="{}%".format(round(psutil.sensors_battery().percent)))
+            battery = "{}%".format(round(psutil.sensors_battery().percent))
+            charging = "{}".format(str(psutil.sensors_battery().power_plugged))
+            message = '**Charging:** {0}\n**Percent:** {1}'.format(battery, charging)
+            embed.add_field(name="**Battery**", value=message)
         except:
             pass
 

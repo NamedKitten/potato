@@ -1,5 +1,3 @@
-import aiohttp
-import json
 import asyncio
 import datetime
 import platform
@@ -44,14 +42,6 @@ class Sharding:
         """A bunch of sharding-related commands."""
         await self.potato.send_command_help(ctx)
 
-    async def get_line(self):
-        if not self.lines:
-            async with aiohttp.ClientSession() as session:
-                async with session.get('https://gist.githubusercontent.com/Pandentia/373f23a4443e4c363b653777f296301e/'
-                                       'raw/0fd0a31891bf9e3ea59c1a5d9e739579d6dab714/sims_loading_lines.json') as resp:
-                    self.lines = json.loads(await resp.text())
-        return '*{}...*'.format(random.choice(self.lines))
-
     async def edit_task(self, message):
         while True:
             await asyncio.sleep(random.randint(2, 4))
@@ -66,21 +56,16 @@ class Sharding:
         if mode.lower() not in ('generic', 'host'):
             await ctx.send('Invalid mode.')
             return await self.potato.send_command_help(ctx)
-
-        msg = await ctx.send(await self.get_line())
-        task = self.potato.loop.create_task(self.edit_task(msg))
-        shards = {}
-        for shard in range(0, self.potato.shard_count):
-            status = await self.potato.ping_shard(shard)
-            shards[shard+1] = status
-        for shard, status in dict(shards).items():
-                shards[shard] = await self.potato.run_on_shard(shard-1, gather_info)
-
+        msg = await ctx.send('Fetching statistics, please wait...')
+        shards = await self.potato.run_on_shard('all', gather_info)
         table = []
         if mode == 'generic':
             table = [['Active', 'Shard', 'Guilds', 'Members', 'Messages', ]]
             for shard, state in shards.items():
-                line = ['*' if shard - 1 == self.potato.shard_id else '', shard,
+                print(shards)
+                print(shard)
+                print(state)
+                line = ['*' if shard == self.potato.shard_id else '', shard,
                         state.get('guilds', ''),
                         state.get('members', ''),
                         state.get('messages_seen', '')]
@@ -97,7 +82,6 @@ class Sharding:
                 table.append(line)
         table = '```prolog\n{}\n```'.format(
             tabulate.tabulate(table, tablefmt='psql', headers='firstrow'))
-        task.cancel()
         await msg.edit(content=table)
 
     @shards.command()
@@ -121,20 +105,9 @@ class Sharding:
     @checks.is_owner()
     async def halt_all(self, ctx):
         """Halts all shards."""
-        msg = await ctx.send(await self.get_line())
-        task = self.potato.loop.create_task(self.edit_task(msg))
-
-        shards = []
-        for shard in range(0, self.potato.shard_count):
-            state = await self.potato.ping_shard(shard)
-            if state and shard != self.potato.shard_id:
-                shards.append(shard)
-
-        for shard in shards:
-            await self.potato.run_on_shard(shard, _halt)
-        task.cancel()
+        msg = await ctx.send('Sending command...')
+        await self.potato.run_on_shard('all', _halt, self.potato.shard_id)
         await msg.edit(content='Thank you for using potato.')
-        await self.potato.run_on_shard(self.potato.shard_id, _halt)
 
 
 def setup(potato):
