@@ -16,8 +16,6 @@ pipeline {
     post {
         always {
             sh 'rm -rf * | true'
-            slackSend baseUrl: 'https://canary.discordapp.com/api/webhooks/292619290090405888/KWmEWBT4FYMVZF2ZmO_7F5DiVXzq9j1PDRKbCv2IuavPYXoG0Qr0Lu0GbX2L7l2Zowio/slack', color: '#ffaaff', message: 'beepboop'
-
         }
     }
 }
