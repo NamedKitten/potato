@@ -29,6 +29,7 @@ except Exception:
 
 settings = dataIO.load("settings")
 
+
 async def send_cmd_help(ctx):
     if ctx.invoked_subcommand:
         _help = await ctx.bot.formatter.format_help_for(
@@ -274,8 +275,10 @@ def first_time_setup():
     settings["description"] = "Potato Discord Bot Framework."
     settings["setup"] = True
 
+
 if not settings.get("setup", False):
     first_time_setup()
+
 
 async def run():
     """Run Potato."""
