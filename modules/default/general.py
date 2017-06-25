@@ -250,9 +250,9 @@ class General:
     @commands.command()
     async def info(self, context):
         await context.send(
-            "This bot uses the rewrite version of the discord.py library and ",
-            "uses the Potato bot framework made by NamedKitten#8468 ( <@305058659799400448> ).\n",
-            "Discord.py: https://github.com/Rapptz/discord.py/tree/rewrite\n",
+            "This bot uses the rewrite version of the discord.py library and "
+            "uses the Potato bot framework made by NamedKitten#8468 ( <@305058659799400448> ).\n" +
+            "Discord.py: https://github.com/Rapptz/discord.py/tree/rewrite\n"
             "Potato: https://github.com/NamedKitten/potato"
         )
 
