@@ -50,7 +50,7 @@ class Stats:
         try:
             battery = "{}%".format(round(psutil.sensors_battery().percent))
             charging = "{}".format(str(psutil.sensors_battery().power_plugged))
-            message = '**Charging:** {0}\n**Percent:** {1}'.format(battery, charging)
+            message = '**Charging:** {0}\n**Percent:** {1}'.format(charging, battery)
             embed.add_field(name="**Battery**", value=message)
         except:
             pass

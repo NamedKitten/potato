@@ -1,9 +1,10 @@
+import json
 import threading
 import time
-import dill
-import json
+
 # noinspection PyUnresolvedReferences
 import __main__
+import dill
 
 
 class RedisDict(dict):
