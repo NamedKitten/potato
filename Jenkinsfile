@@ -21,13 +21,13 @@ pipeline {
             sh 'rm -rf * | true'
         }
         success {
-        sh 'python jenkins.py successful'
+        sh 'python3.5 jenkins.py successful'
         }
         failure {
-        sh 'python jenkins.py failure'
+        sh 'python3.5 jenkins.py failure'
         }
         unstable {
-        sh 'python jenkins.py unstable'
+        sh 'python3.5 jenkins.py unstable'
         }
     }
 }
