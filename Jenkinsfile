@@ -24,10 +24,10 @@ pipeline {
         sh 'python jenkins.py successful'
         }
         failure {
-        sh 'python jenkins.py successful'
+        sh 'python jenkins.py failure'
         }
         unstable {
-        sh 'python jenkins.py successful'
+        sh 'python jenkins.py unstable'
         }
     }
 }
