@@ -17,9 +17,6 @@ pipeline {
         }
     }
     post {
-        always {
-            sh 'rm -rf * | true'
-        }
         success {
         sh 'python3.5 jenkins.py successful'
         }
