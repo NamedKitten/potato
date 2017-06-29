@@ -18,13 +18,13 @@ pipeline {
     }
     post {
         success {
-        sh 'python3.5 jenkins.py successful'
+        sh 'python3.5 jenkins.py success $(git --no-pager show -s --format='%an' HEAD~)'
         }
         failure {
-        sh 'python3.5 jenkins.py failure'
+        sh 'python3.5 jenkins.py failure $(git --no-pager show -s --format='%an' HEAD~)'
         }
         unstable {
-        sh 'python3.5 jenkins.py unstable'
+        sh 'python3.5 jenkins.py unstable $(git --no-pager show -s --format='%an' HEAD~)'
         }
     }
 }

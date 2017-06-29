@@ -20,8 +20,8 @@ elif status == "failure":
 
 embed = {"type": "rich", "color": colour}
 
-author = os.environ.get("GIT_COMMITER_NAME", "")
-author_url = os.environ.get("GIT_COMMITER_URL", "")
+author = args[1]
+author_url = "https://github.com/" + author
 icon_url = "https://github.com/" + author + ".png"
 
 embed["author"] = {"name": author, "url": author_url, "icon_url": icon_url}
