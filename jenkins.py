@@ -1,4 +1,3 @@
-import discord
 import requests
 import sys
 import os
@@ -10,30 +9,30 @@ args.remove("jenkins.py")
 
 status = args[0]
 
-colour = discord.Colour(0)
+colour = 0xffaaff
 
-if status == "successful":
-    colour = colour.green()
+if status == "success":
+    colour = 0x2ecc71
 elif status == "unstable":
-    colour = colour.yellow()
+    colour = 0xffff00
 elif status == "failure":
-    colour = colour.red()
+    colour = 0xe74c3c
 
-embed = discord.Embed(colour=colour)
+embed = {"type": "rich", "color": colour}
 
 author = os.environ.get("GIT_COMMITER_NAME", "")
 author_url = os.environ.get("GIT_COMMITER_URL", "")
 icon_url = "https://github.com/" + author + ".png"
 
-embed.set_author(name=author, url=author_url, icon_url=icon_url)
+embed["author"] = {"name": author, "url": author_url, "icon_url": icon_url}
 
-embed.set_footer(text="Build was " + status + ".")
+embed["footer"] = {"text": "Build was " + status + "."}
 
 json = {
     "content": "Here.",
     "username": "Jenkins",
     "avatar_url": "http://jenkins.pandentia.cf/static/745f737f/images/headshot.png",
-    "embeds": [embed.to_dict()]
+    "embeds": [embed]
 }
 
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
