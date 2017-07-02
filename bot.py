@@ -69,10 +69,11 @@ class NoResponse:
 
 
 class Potato(commands.Bot):
-    def __init__(self, command_prefix, **kwargs):
-        super().__init__(command_prefix, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.settings = settings
         self.owner = None
+        self.started = False
         self.command_prefix = prefix_getter
         self.setup_module = self.add_cog
         self.self_bot = self.settings["self_bot"]
@@ -93,6 +94,11 @@ class Potato(commands.Bot):
         exit(code)
 
     async def on_ready(self):
+        if self.started:
+            return
+        else:
+            self.started = True
+
         try:
             import pyfiglet
             for line in pyfiglet.figlet_format("potato", "3D-ASCII").splitlines():
@@ -112,6 +118,7 @@ class Potato(commands.Bot):
             self.owner = self.get_user(self.args.userbot)
         if self.shard_id is not None:
             self.logger.info('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
+        self.logger.info("Potato's prefixes are: " + ", ".join(self.settings["command_prefix"]))
         self.loop.create_task(self.startup())
 
     async def startup(self):
@@ -258,8 +265,9 @@ def first_time_setup():
         "default.core",
         "default.general",
         "default.errors",
-        "default.mod",
-        "default.stats"
+        "panmodules.mod",
+        "default.stats",
+        "panmodules.command_log",
     ]
     a = input("Do you want this bot to be a selfbot? ").lower()
     if "y" in a:
@@ -268,7 +276,7 @@ def first_time_setup():
     else:
         settings["self_bot"] = False
         settings["token"] = input("Please enter the bots token ")
-    settings["command_prefix"] = input("Please enter the prefix ")
+    settings["command_prefix"] = input("Please enter the prefix ").split()
     settings["owners"] = []
     settings["prefixes"] = {}
     settings["roles"] = {"admin": {}, "mod": {}}
@@ -350,7 +358,7 @@ if __name__ == '__main__':
         logger.info('uvloop is not installed, using plain asyncio instead.')
 
     potato = Potato(
-        settings["command_prefix"],
+        None,
         self_bot=settings["self_bot"],
         pm_help=not settings["self_bot"],
         shard_id=args.shard_id,
