@@ -26,7 +26,7 @@ icon_url = "https://github.com/" + author + ".png"
 
 embed["author"] = {"name": author, "url": author_url, "icon_url": icon_url}
 
-embed["footer"] = {"text": "Build was " + status + "."}
+embed["description"] = "Build was " + status + "."
 
 build_number = os.environ.get("BUILD_DISPLAY_NAME")
 branch_name = os.environ.get("BRANCH_NAME")
