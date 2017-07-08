@@ -28,11 +28,15 @@ embed["author"] = {"name": author, "url": author_url, "icon_url": icon_url}
 
 embed["footer"] = {"text": "Build was " + status + "."}
 
+build_number = os.environ.get("BUILD_DISPLAY_NAME")
+branch_name = os.environ.get("BRANCH_NAME")
+
 json = {
     "content": "Here.",
     "username": "Jenkins",
     "avatar_url": "http://jenkins.pandentia.cf/static/745f737f/images/headshot.png",
-    "embeds": [embed]
+    "embeds": [embed],
+    "title": "[potato:{}] Build {}".format(branch_name, build_number)
 }
 
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
