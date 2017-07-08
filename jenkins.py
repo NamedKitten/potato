@@ -33,6 +33,8 @@ branch_name = os.environ.get("BRANCH_NAME")
 
 embed["title"] = "[potato:{}] Build {}".format(branch_name, build_number)
 
+embed["url"] = "https://github.com/{}/potato/commit/{}".format(author, args[2])
+
 json = {
     "username": "Jenkins",
     "avatar_url": "http://jenkins.pandentia.cf/static/745f737f/images/headshot.png",
