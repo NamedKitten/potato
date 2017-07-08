@@ -1,7 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'chinodesuuu/ci-amethyst'
+            image 'pandentia/jenkins-discordpy-rewrite'
+	    args  '-u 0'
         }
     }
     environment { 
