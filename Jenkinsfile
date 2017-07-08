@@ -18,6 +18,9 @@ pipeline {
         }
     }
     post {
+        always {
+            sh 'pip3 install requests'
+        }
         success {
         sh 'python3.5 jenkins.py success $(git --no-pager show -s --format=\'%an\' HEAD~)'
         }
