@@ -54,7 +54,7 @@ class General:
         self.potato.settings["command_prefix"] = prefixes
         await ctx.send("Prefix has been set.")
 
-    @prefix.command("server")
+    @prefix.command("guild")
     async def guild_prefix(self, ctx, *prefixes: str):
         """Set server-wide prefix."""
         self.potato.settings["prefixes"][ctx.guild.id] = prefixes
