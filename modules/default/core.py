@@ -65,5 +65,4 @@ class Core:
 
 def setup(potato):
     """Setup the Core module."""
-    n = Core(potato)
-    potato.setup_module(n)
+    potato.setup_module(Core(potato))
