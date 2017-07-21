@@ -70,7 +70,6 @@ class Moderation:
             if len(str(roles)) < 1025:  # deal with limits
                 embed.add_field(name='Roles', value=', '.join(roles))
         embed.set_thumbnail(url=avatar_url.replace('size=1024', 'size=256'))
-
         if ctx.channel.permissions_for(ctx.guild.me).embed_links:
             if ctx.author.id == self.potato.user.id:
                 await ctx.message.edit(embed=embed)

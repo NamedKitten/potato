@@ -268,6 +268,8 @@ def first_time_setup():
         "panmodules.mod",
         "default.stats",
         "panmodules.command_log",
+        "default.eval",
+        "default.stats"
     ]
     a = input("Do you want this bot to be a selfbot? ").lower()
     if "y" in a:
@@ -368,7 +370,7 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(run())
-    except KeyboardInterrupt:
+    except:
         logger.info("Shutting down...")
         loop.run_until_complete(potato.logout())
     finally:

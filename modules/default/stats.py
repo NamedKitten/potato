@@ -1,18 +1,17 @@
 import psutil
 import discord
 from discord.ext import commands
-from dateutil.relativedelta import relativedelta as rd
+from humanize import naturaltime
 import time
 import uptime
-FMT = '{0.days} days {0.hours} hours {0.minutes} minutes {0.seconds} seconds'
 
 
 def get_system_uptime():
-    return FMT.format(rd(seconds=round(uptime.uptime())))
+    return naturaltime(round(uptime.uptime()))
 
 
 def get_bot_uptime(boot_time):
-    return FMT.format(rd(seconds=round(int(time.time()) - int(boot_time))))
+    return naturaltime(round(int(time.time()) - int(boot_time)))
 
 
 class Stats:
