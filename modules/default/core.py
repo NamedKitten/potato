@@ -80,8 +80,7 @@ class Core:
         """List modules."""
         modules = sorted(self.get_modules())
         message = "```diff\n"
-        for module in modules:
-            message += module + "\n"
+        message += "\n".join(modules)
         message += "```"
         await ctx.send(message)
 
