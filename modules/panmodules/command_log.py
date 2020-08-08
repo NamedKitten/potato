@@ -1,7 +1,8 @@
 import logging
+from discord.ext import commands
 
 
-class CommandLog:
+class CommandLog(commands.Cog):
     """A simple cog to log commands executed."""
     def __init__(self):
         self.log = logging.getLogger('potato.command_log')

@@ -139,10 +139,12 @@ class Potato(commands.Bot):
             self.settings["modules"].remove(module_name)
 
     def load_module(self, module_name):
-        module_obj = importlib.import_module("modules." + module_name)
-        importlib.reload(module_obj)
-        module_obj.setup(self)
-        self.extensions[module_obj.__name__] = module_obj
+        #module_obj = importlib.import_module("modules." + module_name)
+        #importlib.reload(module_obj)
+        #module_obj.setup(self)
+        print(self.extensions, type(self.extensions))
+        self.load_extension("modules." + module_name)
+        #self.extensions[module_obj.__name__] = module_obj
         self.set_module(module_name, True)
         self.logger.info("Module {} Loaded.".format(module_name))
 

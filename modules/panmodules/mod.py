@@ -17,7 +17,7 @@ class MemberIDConverter(commands.MemberConverter):
                 raise commands.BadArgument()
 
 
-class Moderation:
+class Moderation(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
 
@@ -52,12 +52,9 @@ class Moderation:
 
         embed = discord.Embed()
         embed.title = '{} {}'.format(status, member)
-        avatar_url = member.avatar_url.replace('webp', 'png')
+        avatar_url = str(member.avatar_url).replace('webp', 'png')
         embed.description = '**Display name**: {0.display_name}\n**ID**: {0.id}\n[Avatar]({1})'\
                             .format(member, avatar_url)
-
-        if member.game is not None:
-            embed.description += '\n**Game**: {}'.format(member.game.__str__())  # I'm done fixing this
 
         join_delta = datetime.datetime.utcnow() - member.joined_at
         created_delta = datetime.datetime.utcnow() - member.created_at
@@ -100,7 +97,7 @@ class Moderation:
 
         embed.add_field(name='Members', value=members)
 
-        roles = [x.mention for x in guild.role_hierarchy if not x.is_default()]
+        roles = [x.mention for x in guild.roles if not x.is_default()]
         if roles:  # only show roles if the server has any
             roles = ', '.join(roles)
             if len(roles) <= 1024:  # deal with limits
@@ -311,8 +308,7 @@ class Moderation:
         if channel is None:
             channel = ctx.channel
 
-        messages = await channel.purge(limit=limit, reason='Channel purge initiated by {0} ({0.id})'
-                                       .format(ctx.author))
+        messages = await channel.purge(limit=limit)
         messages = len(messages)
 
         plural = '' if messages == 1 else 's'

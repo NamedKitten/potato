@@ -12,7 +12,7 @@ def unload_module(potato, module_name):
     return potato.unload_module(module_name)
 
 
-class Core:
+class Core(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
 

@@ -1,9 +1,11 @@
 import traceback
+from discord.ext import commands
 from discord.ext.commands import errors as commands_errors
+
 from utils import chat_formatting as cf
 
 
-class Errors:
+class Errors(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
 

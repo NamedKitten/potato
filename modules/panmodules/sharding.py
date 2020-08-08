@@ -28,7 +28,7 @@ def _halt(potato):
     potato.loop.create_task(potato.logout())
 
 
-class Sharding:
+class Sharding(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
         self.lines = []

@@ -9,7 +9,7 @@ from discord.ext import commands
 from utils import checks
 
 
-class Eval:
+class Eval(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
         self._eval = {}

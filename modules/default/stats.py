@@ -14,7 +14,7 @@ def get_bot_uptime(boot_time):
     return naturaltime(round(int(time.time()) - int(boot_time)))
 
 
-class Stats:
+class Stats(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
 

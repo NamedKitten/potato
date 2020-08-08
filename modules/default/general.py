@@ -5,7 +5,7 @@ from discord.ext import commands
 from utils import checks
 
 
-class General:
+class General(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
 
@@ -106,12 +106,11 @@ class General:
         message_delay, message = await self.timeit(ctx.send('..'))
         message_delay = self.format_delta(message_delay)
         edit_delay = self.format_delta((await self.timeit(message.edit(content='...')))[0])
-        gateway_delay = self.format_delta((await self.timeit(await self.potato.ws.ping()))[0])
         after = time.monotonic()
         total_delay = self.format_delta(after - before)
         await message.edit(content='Typing delay: `{}ms`\nMessage send delay: `{}ms`\n'
-                                   'Message edit delay: `{}ms`\nGateway delay: `{}ms`\nTotal: `{}ms`'
-                                   .format(typing_delay, message_delay, edit_delay, gateway_delay, total_delay))
+                                   'Message edit delay: `{}ms`\nTotal: `{}ms`'
+                                   .format(typing_delay, message_delay, edit_delay, total_delay))
 
     @commands.command(aliases=["logout", "die"])
     async def shutdown(self, context, exit_code: int=0):
