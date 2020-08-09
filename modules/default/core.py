@@ -3,15 +3,6 @@ from discord.ext import commands
 from glob import glob
 from utils import checks
 
-
-def load_module(potato, module_name):
-    return potato.load_module(module_name)
-
-
-def unload_module(potato, module_name):
-    return potato.unload_module(module_name)
-
-
 class Core(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
@@ -26,9 +17,13 @@ class Core(commands.Cog):
             chain=chain)
         )
 
-    def get_modules(self):
+    def get_modules_list(self):
         modules = glob("modules/**/**.py", recursive=True)
         modules = [m.replace("/", ".").replace("modules.", "").replace(".py", "") for m in modules]
+        return modules
+
+    def get_modules(self):
+        modules = self.get_modules_list()
         new_modules = []
         for module in modules:
             if module in self.potato.settings["modules"]:
@@ -37,41 +32,41 @@ class Core(commands.Cog):
                 new_modules.append("- " + module)
         return new_modules
 
+    def get_full_module_name(self, name):
+        modules = self.get_modules_list()
+        for module in self.get_modules_list():
+            if module.endswith(name):
+                return module
+        return name
+
     @commands.command()
     @checks.is_owner()
     async def reload(self, ctx, module_name):
-        args = [module_name]
-        command = self.potato.get_command("unload")
-        msg = await ctx.invoke(command, *args)
-        await msg.delete()
-        command = self.potato.get_command("load")
-        await ctx.invoke(command, *args)
+        await self.unload(ctx, module_name)
+        await self.load(ctx, module_name)
 
     @commands.command()
     @checks.is_owner()
     async def load(self, ctx, module_name):
         """Load a module."""
-        resp = await self.potato.run_on_shard(None if self.potato.shard_id is None else 0, load_module, module_name)
-        if resp is None:
-            if self.potato.shard_id is not None:
-                await self.potato.run_on_shard("all", load_module, module_name)
+        module_name = self.get_full_module_name(module_name)
+        try:
+            self.potato.load_module(module_name)
             return await ctx.send("Module loaded sucessfully.")
-        else:
+        except Exception as e:
             msg = 'Unable to load; the module caused a `{}`:\n```py\n{}\n```'\
-                .format(type(resp).__name__, self.get_traceback(resp))
+                .format(type(e).__name__, self.get_traceback(e))
             return await ctx.send(msg)
 
     @commands.command()
     @checks.is_owner()
     async def unload(self, ctx, module_name):
         """Unload a module."""
-        resp = await self.potato.run_on_shard(None if self.potato.shard_id is None else 0, unload_module, module_name)
-        if resp is None:
-
-            if self.potato.shard_id is not None:
-                await self.potato.run_on_shard("all", unload_module, module_name)
+        module_name = self.get_full_module_name(module_name)
+        try:
+            self.potato.unload_module(module_name)
             return await ctx.send("Module unloaded sucessfully.")
-        else:
+        except Exception as e:
             return await ctx.send("Unable to load; the module isn't loaded.")
 
     @commands.command()

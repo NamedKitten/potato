@@ -1,14 +1,18 @@
 import discord
 from discord.ext import commands
 from __main__ import potato, settings
+from discord.ext.commands import CheckFailure
 
-
-def owner_check(ctx):
+def is_owner_checker(ctx):
     if ctx.message.author.id == potato.owner.id:
         return True
     elif ctx.message.author.id in settings["owners"]:
         return True
-    return False
+
+def owner_check(ctx):
+    if is_owner_checker(ctx):
+        return True
+    raise CheckFailure("You need to be the owner to use this command.")
 
 
 def is_owner():
@@ -37,29 +41,6 @@ def is_not_selfbot():
     def predicate(ctx):
         return not ctx.bot.self_bot
     return commands.check(predicate)
-
-
-def is_main_shard():
-    def predicate(ctx):
-        if ctx.bot.shard_id is None:
-            return True
-        elif ctx.bot.shard_id == 0:
-            return True
-        else:
-            return False
-    return commands.check(predicate)
-
-
-def is_not_main_shard():
-    def predicate(ctx):
-        if ctx.bot.shard_id is None:
-            return False
-        elif ctx.bot.shard_id == 0:
-            return False
-        else:
-            return True
-    return commands.check(predicate)
-
 
 def mod_or_permissions(**permissions):
     def predicate(ctx):
@@ -91,7 +72,7 @@ def mod_or_permissions(**permissions):
                 allowed = user_permissions.get(permission, False)
                 if allowed:
                     return True
-        return False
+        raise CheckFailure("You do not have the required permissions or mod status to use this command.")
     return commands.check(predicate)
 
 
@@ -118,7 +99,7 @@ def admin_or_permissions(**permissions):
                 allowed = user_permissions.get(permission, False)
                 if allowed:
                     return True
-        return False
+        raise CheckFailure("You do not have the required permissions or admin status to use this command.")
     return commands.check(predicate)
 
 
@@ -138,7 +119,7 @@ def serverowner_or_permissions(**permissions):
             allowed = user_permissions.get(permission, False)
             if allowed:
                 return True
-        return False
+        raise CheckFailure("You do not have the required permissions or owner status to use this command.")
     return commands.check(predicate)
 
 

@@ -12,10 +12,10 @@ import threading
 import time
 import uuid
 from concurrent.futures import TimeoutError
-
 from discord.ext import commands
 from discord import utils as dutils
 from utils import dataIO
+import aionotify
 
 try:
     redis_conn = redis.StrictRedis(
@@ -83,12 +83,6 @@ class Potato(commands.Bot):
         self.logger = logging.getLogger("potato")
         self.boot_time = time.time()
         self.redis = redis_conn
-        self._pubsub_futures = {}  # futures temporarily stored here
-        self._pubsub_broadcast_cache = {}
-        db = str(self.redis.connection_pool.connection_kwargs['db'])
-        self.pubsub_id = 'potato.{}.pubsub.code'.format(db)
-        threading.Thread(name='pubsub', target=self._pubsub_loop, daemon=True).start()
-        threading.Thread(name='pubsub cache', target=self._pubsub_cache_loop, daemon=True).start()
 
     def exit(code=0):
         exit(code)
@@ -98,13 +92,6 @@ class Potato(commands.Bot):
             return
         else:
             self.started = True
-
-        try:
-            import pyfiglet
-            for line in pyfiglet.figlet_format("potato", "3D-ASCII").splitlines():
-                self.logger.info(line)
-        except:
-            pass
 
         self.logger.info('Logged in as {0}.'.format(self.user))
         if self.user.bot:
@@ -116,20 +103,21 @@ class Potato(commands.Bot):
             self.owner = self.user
         else:
             self.owner = self.get_user(self.args.userbot)
-        if self.shard_id is not None:
-            self.logger.info('Shard {0} of {1}.'.format(self.shard_id + 1, self.shard_count))
         self.logger.info("Potato's prefixes are: " + ", ".join(self.settings["command_prefix"]))
         self.loop.create_task(self.startup())
 
     async def startup(self):
+        self.settings["modules"].append("default.core")
+        self.settings["modules"] = list(dict.fromkeys(self.settings["modules"]))
         for module in self.settings["modules"]:
             try:
                 self.load_module(module)
-            except:
+            except Exception as e:
                 self.unload_module(module)
                 self.logger.warning(
-                    "Module {} couldn't be loaded.".format(module)
+                    "Module {} couldn't be loaded, {}.".format(module, e)
                 )
+        self.loop.create_task(self.auto_reload_modules())
 
     def set_module(self, module_name: str, value: bool):
         if value:
@@ -139,10 +127,6 @@ class Potato(commands.Bot):
             self.settings["modules"].remove(module_name)
 
     def load_module(self, module_name):
-        #module_obj = importlib.import_module("modules." + module_name)
-        #importlib.reload(module_obj)
-        #module_obj.setup(self)
-        print(self.extensions, type(self.extensions))
         self.load_extension("modules." + module_name)
         #self.extensions[module_obj.__name__] = module_obj
         self.set_module(module_name, True)
@@ -160,105 +144,31 @@ class Potato(commands.Bot):
             pass
         self.load_module(module_name)
 
-    def _process_pubsub_event(self, event):
-        _id = self.pubsub_id
-        if event['type'] != 'message':
-            return
-        try:
-            _data = dill.loads(event['data'])
-            target = _data.get('target')
-            broadcast = target == 'all'
-            if not isinstance(_data, dict):
+    async def _scan_for_events(self, i): 
+        for event in i.event_gen():
+            if type(event) is None:
                 return
-            # get type, if this is a broken dict just ignore it
-            if _data.get('type') is None:
+            if not "IN_CLOSE_NOWRITE" in event[1]:
                 return
-            # ping response
-            if target == self.shard_id or broadcast:
-                if _data['type'] == 'ping':
-                    self.redis.publish(_id, dill.dumps({'type': 'response', 'id': _data.get('id'),
-                                                        'response': 'Pong.'}))
-                if _data['type'] == 'coderequest':
-                    func = _data.get('function')  # get the function, discard if None
-                    if func is None:
-                        return
-                    resp = {'type': 'response', 'id': _data.get('id'), 'response': None}
-                    if broadcast:
-                        resp['from'] = self.shard_id
-                    args = _data.get('args', ())
-                    kwargs = _data.get('kwargs', {})
-                    try:
-                        resp['response'] = func(self, *args, **kwargs)  # this gets run in a thread so whatever
-                    except Exception as e:
-                        resp['response'] = e
-                    try:
-                        self.redis.publish(_id, dill.dumps(resp))
-                    except dill.PicklingError:  # if the response fails to dill, return None instead
-                        resp = {'type': 'response', 'id': _data.get('id')}
-                        if broadcast:
-                            resp['from'] = self.shard_id
-                        self.redis.publish(_id, dill.dumps(resp))
-            if _data['type'] == 'response':
-                __id = _data.get('id')
-                _from = _data.get('from')
-                if __id is None:
-                    return
-                if __id not in self._pubsub_futures:
-                    return
-                if __id not in self._pubsub_broadcast_cache and _from is not None:
-                    return
-                if _from is None:
-                    self._pubsub_futures[__id].set_result(_data.get('response'))
-                    del self._pubsub_futures[__id]
-                else:
-                    self._pubsub_broadcast_cache[__id][_from] = _data.get('response')
+            print(list(event))
 
-        except dill.UnpicklingError:
-            return
-
-    def _pubsub_loop(self):
-        pubsub = self.redis.pubsub()
-        _id = self.pubsub_id
-        pubsub.subscribe(_id)
-        for event in pubsub.listen():
-            threading.Thread(target=self._process_pubsub_event, args=(event,), name='pubsub event', daemon=True).start()
-
-    def _pubsub_cache_loop(self):
+    async def auto_reload_modules(self):
+        watcher = aionotify.Watcher()
+        watcher.watch(alias='default', path='modules/default', flags=aionotify.Flags.MODIFY)
+        watcher.watch(alias='panmodules', path='modules/panmodules', flags=aionotify.Flags.MODIFY)
+        watcher.watch(alias='kitteh', path='modules/kitteh', flags=aionotify.Flags.MODIFY)
+        await watcher.setup(loop)
         while True:
-            for k, v in dict(self._pubsub_broadcast_cache).items():
-                contents = [v[x] for x in v if x != 'expires']
-                if v['expires'] < time.monotonic() or NoResponse() not in contents:
-                    del v['expires']
-                    self._pubsub_futures[k].set_result(v)
-                    del self._pubsub_futures[k]
-                    del self._pubsub_broadcast_cache[k]
-            time.sleep(0.01)  # be nice to the host
-
-    def request(self, target, broadcast_timeout=1, **kwargs):
-        _id = str(uuid.uuid4())
-        self._pubsub_futures[_id] = fut = asyncio.Future()
-        request = {'id': _id, 'target': target}
-        request.update(kwargs)
-        if target == 'all':
-            cache = {k: NoResponse() for k in range(0, self.shard_count)}  # prepare the cache
-            cache['expires'] = time.monotonic() + broadcast_timeout
-            self._pubsub_broadcast_cache[_id] = cache
-        self.redis.publish(self.pubsub_id, dill.dumps(request))
-        return fut
-
-    async def run_on_shard(self, shard, func, *args, **kwargs):
-        return await self.request(shard, type='coderequest', function=func, args=args, kwargs=kwargs)
-
-    async def ping_shard(self, shard, timeout=1):
-        try:
-            await asyncio.wait_for(self.request(shard, type='ping'), timeout=timeout)
-            return True
-        except TimeoutError:
-            return False
+            event = await watcher.get_event()
+            module_name = event.alias + "." + event.name.replace(".py", "")
+            try:
+                self.reload_module(module_name)
+            except Exception as e:
+                print(e)
+        watcher.close()
 
     def __repr__(self):
-        return '<Potato username={} shard_id={} shard_count={}>'.format(
-            *[repr(x) for x in [self.user.name, self.shard_id, self.shard_count]])
+        return '<Potato username={}>'.format(repr(self.user.name))
 
 
 def first_time_setup():
@@ -331,29 +241,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--reset', help="Reset the bot's settings", action="store_true")
-
-    shard_grp = parser.add_argument_group('sharding')
-    shard_grp.add_argument('--shard_id', type=int, help='the shard ID the bot should run on', default=None)
-    shard_grp.add_argument('--shard_count', type=int, help='the total number of shards you are planning to run',
-                           default=None)
     args = parser.parse_args()
-
-    if args.shard_id is not None:  # usability
-        args.shard_id -= 1
 
     if args.reset:
         first_time_setup()
 
-    def warn():
-        logger.warning(
-            "Windows is NOT supported."
-            "No support will be provided."
-        )
-    if sys.platform == 'win32':
-        warn()
-    if sys.platform == 'linux':
-        if os.path.exists('/dev/lxss'):
-            warn()
     try:
         import uvloop
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -365,8 +257,6 @@ if __name__ == '__main__':
         None,
         self_bot=settings["self_bot"],
         pm_help=not settings["self_bot"],
-        shard_id=args.shard_id,
-        shard_count=args.shard_count,
     )
 
     loop = asyncio.get_event_loop()

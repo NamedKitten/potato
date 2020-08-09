@@ -8,6 +8,7 @@ from utils import chat_formatting as cf
 class Errors(commands.Cog):
     def __init__(self, potato):
         self.potato = potato
+        potato.on_command_error = self.on_command_error
 
     @staticmethod
     def get_traceback(exception, limit=None, chain=True):
@@ -38,11 +39,13 @@ class Errors(commands.Cog):
                 context.command.qualified_name,
                 _traceback
             )
+            print(error)
             await context.send(cf.warning(error))
         elif isinstance(exception, commands_errors.CheckFailure):
+            print(exception, dir(exception), repr(exception), str(exception))
             await context.send(
                 cf.warning(
-                    "You do not have the required permissions or role to run this command."
+                    f"{exception.args[0]}"
                 )
             )
         elif isinstance(exception, commands_errors.CommandOnCooldown):
